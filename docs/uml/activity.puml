@@ -1,0 +1,104 @@
+@startuml activity
+title COLORS Web Application - Activity Diagram (login, search, add, logout)
+
+skinparam shadowing false
+skinparam ActivityBackgroundColor #F8F8F8
+skinparam ActivityBorderColor #555555
+
+|User|
+start
+:Open index.html;
+repeat
+|User|
+:Enter username and password;
+:Click "Do It";
+
+|Browser (code.js)|
+:doLogin(): reset userId, firstName, lastName;
+:hash = md5(password);
+:POST {login, password: hash}
+to /LAMPAPI/Login.php;
+
+|PHP API|
+:Login.php: SELECT ID, firstName, lastName
+FROM Users WHERE Login = ? AND Password = ?;
+
+|MySQL|
+:Return matching row (if any);
+
+|PHP API|
+if (row found?) then (yes)
+  :Respond {id, firstName, lastName, error: ""};
+else (no)
+  :Respond {id: 0, ..., error: "No Records Found"};
+endif
+
+|Browser (code.js)|
+backward :Show "User/Password combination incorrect";
+repeat while (response id < 1?) is (yes) not (no)
+
+:saveCookie(): firstName, lastName, userId
+(expires in 20 minutes);
+:Redirect to color.html;
+
+:readCookie() on DOMContentLoaded;
+if (userId found in cookie?) then (no)
+  :Redirect to index.html;
+  |User|
+  stop
+else (yes)
+endif
+
+repeat
+  |User|
+  :Choose an action on color.html;
+  if (action?) then (Search Color)
+    :Enter search text, click "Search Color";
+    |Browser (code.js)|
+    :searchColor(): POST {search, userId}
+    to SearchColors.php;
+    |PHP API|
+    :SELECT Name FROM Colors
+    WHERE Name LIKE %search% AND UserID = ?;
+    |MySQL|
+    :Return matching color names;
+    |PHP API|
+    if (any rows?) then (yes)
+      :Respond {results: [names], error: ""};
+    else (no)
+      :Respond {id: 0, ..., error: "No Records Found"};
+    endif
+    |Browser (code.js)|
+    :Show "Color(s) has been retrieved";
+    :Write names into #colorList,
+    separated by <br />;
+  elseif () then (Add Color)
+    |User|
+    :Enter color name, click "Add Color";
+    |Browser (code.js)|
+    :addColor(): POST {color, userId}
+    to AddColor.php;
+    |PHP API|
+    :INSERT INTO Colors (UserId, Name) VALUES (?, ?);
+    |MySQL|
+    :Store new color row;
+    |PHP API|
+    :Respond {error: ""};
+    |Browser (code.js)|
+    :Show "Color has been added";
+  else (Log Out)
+    |User|
+    :Click "Log Out";
+    |Browser (code.js)|
+    :doLogout(): reset globals,
+    expire the session cookie;
+    :Redirect to index.html;
+    |User|
+    stop
+  endif
+  |User|
+repeat while (stay on color.html?) is (yes)
+-> no (close tab);
+stop
+
+@enduml
