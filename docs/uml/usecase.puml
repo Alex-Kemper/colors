@@ -1,0 +1,56 @@
+@startuml usecase
+title COLORS Web Application - Use Case Diagram
+
+left to right direction
+skinparam packageStyle rectangle
+skinparam shadowing false
+skinparam usecase {
+  BackgroundColor #F8F8F8
+  BorderColor #555555
+}
+
+actor "User\n(seeded account)" as User
+actor "MySQL Database\n(COP4331)" as DB <<system>>
+
+rectangle "COLORS Web Application" {
+  usecase "Log In" as UC_Login
+  usecase "Hash Password (MD5)" as UC_Hash
+  usecase "Start Session\n(save 20-min cookie,\ngo to color.html)" as UC_Session
+  usecase "Show Login Error" as UC_LoginErr
+
+  usecase "Search Colors" as UC_Search
+  usecase "Add Color" as UC_Add
+  usecase "Log Out" as UC_Logout
+  usecase "Clear Session Cookie" as UC_Clear
+}
+
+User --> UC_Login
+User --> UC_Search
+User --> UC_Add
+User --> UC_Logout
+
+UC_Login ..> UC_Hash : <<include>>
+UC_Session ..> UC_Login : <<extend>>\n[credentials match]
+UC_LoginErr ..> UC_Login : <<extend>>\n[no matching user]
+UC_Logout ..> UC_Clear : <<include>>
+
+UC_Login --> DB : SELECT Users
+UC_Search --> DB : SELECT Colors\n(Name LIKE, UserID)
+UC_Add --> DB : INSERT Colors
+
+note right of UC_Search
+  Search Colors, Add Color, and Log Out are
+  only reachable from color.html, which calls
+  readCookie() on load and redirects to
+  index.html when there is no userId cookie.
+  Every color query is scoped to the user's ID.
+end note
+
+note bottom of UC_Login
+  There is no sign-up use case:
+  accounts are seeded directly in SQL.
+  The Contacts table exists in the schema
+  but no use case reads or writes it.
+end note
+
+@enduml
