@@ -15,7 +15,7 @@ package "Front End (public/)" {
   }
 
   class "color.html" as ColorPage <<page>> {
-    userName : span (not populated)
+    {field} userName : span (not populated)
     logoutButton : button
     searchText : text input
     searchColorButton : button
@@ -78,24 +78,24 @@ package "API (api/)" {
 package "Database (COP4331)" {
   class Users <<table>> {
     +ID : INT <<PK, auto_increment>>
-    FirstName : VARCHAR(50)
-    LastName : VARCHAR(50)
-    Login : VARCHAR(50)
-    Password : VARCHAR(50) <<MD5 hex>>
+    {field} FirstName : VARCHAR(50)
+    {field} LastName : VARCHAR(50)
+    {field} Login : VARCHAR(50)
+    {field} Password : VARCHAR(50) <<MD5 hex>>
   }
 
   class Colors <<table>> {
     +ID : INT <<PK, auto_increment>>
-    Name : VARCHAR(50)
+    {field} Name : VARCHAR(50)
     UserID : INT
   }
 
   class Contacts <<table>> {
     +ID : INT <<PK, auto_increment>>
-    FirstName : VARCHAR(50)
-    LastName : VARCHAR(50)
-    Phone : VARCHAR(50)
-    Email : VARCHAR(50)
+    {field} FirstName : VARCHAR(50)
+    {field} LastName : VARCHAR(50)
+    {field} Phone : VARCHAR(50)
+    {field} Email : VARCHAR(50)
     UserID : INT
   }
 }
