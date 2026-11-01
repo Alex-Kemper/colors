@@ -1,0 +1,172 @@
+@startuml class
+title COLORS Web Application - Class Diagram
+
+skinparam shadowing false
+skinparam classAttributeIconSize 0
+skinparam packageStyle rectangle
+hide empty members
+
+package "Front End (public/)" {
+  class "index.html" as IndexPage <<page>> {
+    loginName : text input
+    loginPassword : password input
+    loginButton : button
+    loginResult : span
+  }
+
+  class "color.html" as ColorPage <<page>> {
+    userName : span (not populated)
+    logoutButton : button
+    searchText : text input
+    searchColorButton : button
+    colorSearchResult : span
+    colorList : p
+    colorText : text input
+    addColorButton : button
+    colorAddResult : span
+  }
+
+  class "code.js" as CodeJs <<script>> {
+    +urlBase : string = "https://cop4331c.lol/LAMPAPI"
+    +extension : string = "php"
+    +userId : int = 0
+    +firstName : string = ""
+    +lastName : string = ""
+    --
+    +doLogin() : void
+    +saveCookie() : void
+    +readCookie() : void
+    +doLogout() : void
+    +addColor() : void
+    +searchColor() : void
+  }
+
+  class "md5.js" as Md5Js <<library>> {
+    +md5(string, key?, raw?) : string
+  }
+
+  class SessionCookie <<cookie>> {
+    firstName : string
+    lastName : string
+    userId : int
+    expires : 20 minutes after login
+  }
+}
+
+package "API (api/)" {
+  class "Login.php" as LoginApi <<endpoint>> {
+    -getRequestInfo() : array
+    -sendResultInfoAsJson(obj) : void
+    -returnWithError(err) : void
+    -returnWithInfo(firstName, lastName, id) : void
+  }
+
+  class "AddColor.php" as AddColorApi <<endpoint>> {
+    -getRequestInfo() : array
+    -sendResultInfoAsJson(obj) : void
+    -returnWithError(err) : void
+  }
+
+  class "SearchColors.php" as SearchColorsApi <<endpoint>> {
+    -getRequestInfo() : array
+    -sendResultInfoAsJson(obj) : void
+    -returnWithError(err) : void
+    -returnWithInfo(searchResults) : void
+  }
+}
+
+package "Database (COP4331)" {
+  class Users <<table>> {
+    +ID : INT <<PK, auto_increment>>
+    FirstName : VARCHAR(50)
+    LastName : VARCHAR(50)
+    Login : VARCHAR(50)
+    Password : VARCHAR(50) <<MD5 hex>>
+  }
+
+  class Colors <<table>> {
+    +ID : INT <<PK, auto_increment>>
+    Name : VARCHAR(50)
+    UserID : INT
+  }
+
+  class Contacts <<table>> {
+    +ID : INT <<PK, auto_increment>>
+    FirstName : VARCHAR(50)
+    LastName : VARCHAR(50)
+    Phone : VARCHAR(50)
+    Email : VARCHAR(50)
+    UserID : INT
+  }
+}
+
+package "JSON messages" {
+  class LoginRequest <<JSON>> {
+    login : string
+    password : string <<MD5 hex>>
+  }
+  class LoginResponse <<JSON>> {
+    id : int
+    firstName : string
+    lastName : string
+    error : string
+  }
+  class AddColorRequest <<JSON>> {
+    color : string
+    userId : int
+  }
+  class AddColorResponse <<JSON>> {
+    error : string
+  }
+  class SearchColorsRequest <<JSON>> {
+    search : string
+    userId : int
+  }
+  class SearchColorsResponse <<JSON>> {
+    results : string[]
+    error : string
+  }
+}
+
+IndexPage ..> Md5Js : <<loads>>
+IndexPage ..> CodeJs : <<loads>>
+ColorPage ..> CodeJs : <<loads>>
+CodeJs ..> Md5Js : doLogin() calls md5()
+CodeJs ..> SessionCookie : saveCookie() / readCookie() / doLogout()
+
+CodeJs ..> LoginApi : POST LoginRequest
+CodeJs ..> AddColorApi : POST AddColorRequest
+CodeJs ..> SearchColorsApi : POST SearchColorsRequest
+
+LoginApi ..> LoginRequest
+LoginApi ..> LoginResponse
+AddColorApi ..> AddColorRequest
+AddColorApi ..> AddColorResponse
+SearchColorsApi ..> SearchColorsRequest
+SearchColorsApi ..> SearchColorsResponse
+
+LoginApi ..> Users : SELECT
+AddColorApi ..> Colors : INSERT
+SearchColorsApi ..> Colors : SELECT ... LIKE
+
+Users "1" -- "0..*" Colors : owns (via UserID) >
+Users "1" -- "0..*" Contacts : owns (via UserID) >
+
+note bottom of Colors
+  UserID is a logical link to Users.ID;
+  schema.sql declares no FOREIGN KEY constraint.
+end note
+
+note bottom of Contacts
+  Created by schema.sql but not used
+  by any page or API endpoint.
+end note
+
+note bottom of SessionCookie
+  Stored as a single cookie named firstName
+  whose value is "<first>,lastName=<last>,userId=<id>";
+  readCookie() splits it on commas.
+  Not httpOnly; no server-side session.
+end note
+
+@enduml
