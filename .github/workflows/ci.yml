@@ -1,0 +1,104 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v5
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install lint and test tools
+        run: npm ci
+
+      - name: Lint HTML (HTMLHint)
+        run: npm run lint:html
+
+      - name: Lint CSS (Stylelint)
+        if: success() || failure()
+        run: npm run lint:css
+
+      - name: Lint JavaScript (ESLint)
+        if: success() || failure()
+        run: npm run lint:js
+
+  unit-tests:
+    name: Front-end unit tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v5
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install lint and test tools
+        run: npm ci
+
+      - name: Run front-end unit tests (Jest + jsdom)
+        run: npm run test:unit
+
+  integration-tests:
+    name: API integration tests (PHP + MySQL)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v5
+
+      # The app is LAMP: PHP serves the API and MySQL stores the data.
+      # Node is only used below to run Jest against the running PHP API.
+      - name: Set up PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.3"
+          extensions: mysqli
+          ini-values: mysqli.default_socket=/var/run/mysqld/mysqld.sock
+          coverage: none
+
+      - name: Start MySQL and load schema + seed data
+        run: |
+          sudo systemctl start mysql.service
+          mysql -uroot -proot < db/schema.sql
+          # api/*.php connect as the committed placeholder user, so create it
+          # for this throwaway CI database only (real credentials live on the server).
+          mysql -uroot -proot -e "CREATE USER 'DB_USER'@'localhost' IDENTIFIED BY 'DB_PASSWORD'; GRANT ALL PRIVILEGES ON COP4331.* TO 'DB_USER'@'localhost'; FLUSH PRIVILEGES;"
+
+      - name: Start PHP API server
+        run: |
+          php -S 127.0.0.1:8000 -t api > php-server.log 2>&1 &
+          for i in $(seq 1 20); do
+            curl -s -o /dev/null http://127.0.0.1:8000/Login.php && exit 0
+            sleep 1
+          done
+          echo "PHP server did not start"; cat php-server.log; exit 1
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install lint and test tools
+        run: npm ci
+
+      - name: Run API integration tests (Jest)
+        env:
+          API_BASE_URL: http://127.0.0.1:8000
+        run: npm run test:integration
+
+      - name: Show PHP server log
+        if: failure()
+        run: cat php-server.log

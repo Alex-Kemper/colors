@@ -23,4 +23,22 @@ export default [
       "prefer-const": "error",
     },
   },
+  {
+    // Jest tests and config run in Node (CommonJS); unit tests also use jsdom's document
+    files: ["tests/**/*.js", "jest.config.js"],
+    languageOptions: {
+      ecmaVersion: 2022,
+      sourceType: "commonjs",
+      globals: {
+        ...globals.node,
+        ...globals.jest,
+        ...globals.browser,
+      },
+    },
+    rules: {
+      eqeqeq: "error",
+      "no-var": "error",
+      "prefer-const": "error",
+    },
+  },
 ];

@@ -79,6 +79,27 @@ This is a deployed server application, not a local dev project you `npm start` �
 
 To run your own copy, follow [Setup](#setup) above against your own server and database.
 
+## Testing
+
+Automated tests use [Jest](https://jestjs.io/). Node.js is used **only** for linting and test tooling; the application itself is always served by PHP/Apache and MySQL.
+
+- **Front-end unit tests** (`tests/unit/`) load `public/js/code.js` into a simulated browser DOM (jsdom) with a fake `XMLHttpRequest`, and check login (MD5 hashing, request payload, success redirect, bad-credentials message), cookie save/restore, logout, adding a color, and rendering search results.
+- **Integration tests** (`tests/integration/`) send real HTTP requests to the PHP API backed by a real MySQL database seeded from `db/schema.sql`, and check each endpoint's JSON response structure, valid/invalid login, per-user search scoping, and that an added color can be searched back.
+
+Run locally:
+
+```bash
+npm ci
+npm run lint               # HTMLHint + Stylelint + ESLint
+npm run test:unit          # no server needed
+# integration tests need the API running, e.g. php -S 127.0.0.1:8000 -t api
+API_BASE_URL=http://127.0.0.1:8000 npm run test:integration
+```
+
+### Continuous Integration
+
+`.github/workflows/ci.yml` runs on every push and pull request with three jobs: **Lint**, **Front-end unit tests**, and **API integration tests**. The integration job starts the runner's MySQL server, loads `db/schema.sql`, creates the placeholder `DB_USER` account for that throwaway database only, serves `api/` with PHP's built-in server, and then runs the Jest integration suite against it.
+
 ## Note on Credentials
 
 The `mysqli()` connection lines committed in `api/*.php` use placeholder values (`DB_USER` / `DB_PASSWORD`), and `db/schema.sql`'s `CREATE USER` statement uses `REPLACE_WITH_REAL_PASSWORD`. **No real database password, API key, or server-specific configuration is committed to this repository.** Real credentials exist only on the deployed server itself.
@@ -91,7 +112,7 @@ The `mysqli()` connection lines committed in `api/*.php` use placeholder values 
 - There is no user registration flow; accounts are seeded directly via SQL.
 - The app assumes a single MySQL database shared by all three API endpoints and does not use any ORM or migration tooling — schema changes are manual, tracked only in `db/schema.sql`.
 - Tested manually against Ubuntu 24.04 / Apache 2.4 / PHP 8 / MySQL 8 (DigitalOcean's LAMP Marketplace image); other LAMP versions are not verified.
-- No automated tests are included.
+- Automated tests cover the front-end JavaScript and the three API endpoints (see [Testing](#testing)); there is no browser end-to-end (UI click-through) test.
 
 ## AI Usage Disclosure
 
@@ -110,3 +131,5 @@ The troubleshooting followed the same pattern each time: describe the symptom, p
 The AI also drafted the placeholder database-credential lines in the PHP files (real generated credentials were only ever placed on the live server, never in anything committed here), and helped organize this repository — restructuring files into `api/`/`public/` and drafting this README, `.gitignore`, and `LICENSE.md`.
 
 Every fix above was verified against the live server before being trusted, not just accepted because the AI proposed it: each endpoint was tested directly with `curl` in addition to through the browser, and the full user flow — invalid login, valid login, adding a color, and searching for it again after closing the browser and logging back in — was run by hand end to end. The database schema, credential handling, and repository layout were likewise reviewed rather than taken as-is.
+
+For the automated-testing assignment, AI assistance (Claude) was also used to write the Jest unit and integration tests, the test helper that loads `code.js` into jsdom, and the updated GitHub Actions workflow. The tests were run locally against PHP's built-in server and a MariaDB database seeded from `db/schema.sql` before being pushed, and the GitHub Actions run is the record that they pass in CI.
