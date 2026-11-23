@@ -12,3 +12,6 @@ Thumbs.db
 *.pem
 *.key
 secrets.txt
+
+# Node (lint tooling only)
+node_modules/
